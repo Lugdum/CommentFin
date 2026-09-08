@@ -53,6 +53,11 @@ public class CommentController : ControllerBase
             return BadRequest("itemId is required");
         }
 
+        if (await IsCallerBlockedAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return Ok(Array.Empty<CommentDto>());
+        }
+
         return Ok(await _store.GetForItemAsync(itemId, User.GetUserId(), cancellationToken).ConfigureAwait(false));
     }
 
@@ -65,6 +70,11 @@ public class CommentController : ControllerBase
         if (userId.Equals(Guid.Empty))
         {
             return Unauthorized();
+        }
+
+        if (await _store.IsUserBlockedAsync(userId, cancellationToken).ConfigureAwait(false))
+        {
+            return Ok(Array.Empty<CommentDto>());
         }
 
         var list = await _store.GetForUserAsync(userId, cancellationToken).ConfigureAwait(false);
@@ -113,6 +123,11 @@ public class CommentController : ControllerBase
             return BadRequest($"at most {maxIds} itemIds per request");
         }
 
+        if (await IsCallerBlockedAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return Ok(new Dictionary<string, int>());
+        }
+
         var counts = await _store.CountByItemsAsync(ids, cancellationToken).ConfigureAwait(false);
         var byString = new Dictionary<string, int>();
         foreach (var (id, count) in counts)
@@ -141,6 +156,11 @@ public class CommentController : ControllerBase
         if (user is null)
         {
             return Unauthorized();
+        }
+
+        if (await _store.IsUserBlockedAsync(userId, cancellationToken).ConfigureAwait(false))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
         }
 
         var isAdmin = User.IsAdministrator();
@@ -200,6 +220,11 @@ public class CommentController : ControllerBase
             return BadRequest($"body must be 1..{config.MaxCommentLength} characters");
         }
 
+        if (await IsCallerBlockedAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
         var result = await _store
             .UpdateBodyAsync(id, body, User.GetUserId(), User.IsAdministrator(), cancellationToken)
             .ConfigureAwait(false);
@@ -213,6 +238,11 @@ public class CommentController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
+        if (await IsCallerBlockedAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
         var result = await _store
             .SoftDeleteAsync(id, User.GetUserId(), User.IsAdministrator(), cancellationToken)
             .ConfigureAwait(false);
@@ -225,6 +255,17 @@ public class CommentController : ControllerBase
         MutationResult.Forbidden => StatusCode(StatusCodes.Status403Forbidden),
         _ => NotFound(),
     };
+
+    /// <summary>True when an admin has blocked the calling user from the plugin.
+    /// The endpoints treat a blocked caller as if the plugin were not installed:
+    /// reads come back empty and writes are refused.</summary>
+    private Task<bool> IsCallerBlockedAsync(CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        return userId.Equals(Guid.Empty)
+            ? Task.FromResult(false)
+            : _store.IsUserBlockedAsync(userId, cancellationToken);
+    }
 
     private string DisplayName(Guid itemId)
     {

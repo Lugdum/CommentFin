@@ -1,7 +1,7 @@
 ---
 name: "CommentFin"
 guid: "fa318865-64a9-4fcf-93b4-8462cf4d25d5"
-version: "0.1.0.0"
+version: "0.1.1.0"
 targetAbi: "10.11.0.0"
 framework: "net9.0"
 overview: "Timestamped collaborative comments shown as a danmaku overlay on the video."
@@ -16,6 +16,12 @@ owner: "Lugdum"
 artifacts:
   - "Jellyfin.Plugin.CommentTrack.dll"
 changelog: >
+  ### 0.1.1.0
+  - Per-user access control on the plugin config page: search your users and,
+    per user, turn the overlay on/off (they can still change it back) or block
+    the plugin for them entirely. Blocked users get a no-op plugin on both the
+    client and the server; comments they already posted stay visible.
+
   ### 0.1.0.0
   - First release. Comment overlay (scroll / fixed-top / fixed-bottom), in-player
     compose button + keyboard shortcut, progress-bar markers, library-card badges,

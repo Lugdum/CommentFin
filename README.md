@@ -38,6 +38,11 @@ each viewer turns it on for themselves.
 * **Admin defaults.** The plugin config page sets the starting value for every
   setting, and a button re-applies those defaults to everyone who already has an
   account.
+* **Per-user access.** From the same config page you can search your users and,
+  for any one of them, turn the overlay on or off (they can still change it back
+  themselves) or block the plugin for them entirely. A blocked user gets no
+  overlay, compose button or badges, and the server stops accepting comments
+  from them; the comments they already posted stay visible.
 * **Managing and moderating.** Each viewer can edit or delete their own
   comments, either for the title they are watching or across everything they
   have ever posted. Administrators also get an "Everyone" view for taking down

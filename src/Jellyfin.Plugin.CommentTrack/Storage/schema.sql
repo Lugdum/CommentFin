@@ -30,9 +30,18 @@ CREATE TABLE IF NOT EXISTS user_prefs (
     updated_at TEXT NOT NULL
 );
 
+-- Admin-set, per-user plugin access. Distinct from user_prefs, which the user
+-- owns and can overwrite: only the dashboard writes here. A row exists only
+-- while the user is blocked; clearing the block deletes it.
+CREATE TABLE IF NOT EXISTS user_policy (
+    user_id    TEXT PRIMARY KEY,
+    blocked    INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS schema_meta (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
-INSERT INTO schema_meta (key, value) VALUES ('version', '2')
+INSERT INTO schema_meta (key, value) VALUES ('version', '3')
     ON CONFLICT (key) DO UPDATE SET value = excluded.value;

@@ -2,6 +2,20 @@
 <html lang="en">
 <head>
     <title>CommentFin</title>
+    <style>
+        #CommentTrackConfigPage .ct-user-list { border: 1px solid rgba(127,127,127,.35); border-radius: 6px; max-height: 22em; overflow-y: auto; margin-bottom: 1em; }
+        #CommentTrackConfigPage .ct-user-row { display: flex; align-items: center; gap: .75em; padding: .5em .75em; border-bottom: 1px solid rgba(127,127,127,.2); flex-wrap: wrap; }
+        #CommentTrackConfigPage .ct-user-row:last-child { border-bottom: 0; }
+        #CommentTrackConfigPage .ct-user-name { flex: 1 1 9em; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #CommentTrackConfigPage .ct-user-row.ct-blocked .ct-user-name { opacity: .5; text-decoration: line-through; }
+        #CommentTrackConfigPage .ct-seg { display: inline-flex; border: 1px solid rgba(127,127,127,.5); border-radius: 5px; overflow: hidden; }
+        #CommentTrackConfigPage .ct-seg button { background: transparent; border: 0; border-left: 1px solid rgba(127,127,127,.5); color: inherit; padding: .25em .7em; cursor: pointer; font: inherit; font-size: .9em; }
+        #CommentTrackConfigPage .ct-seg button:first-child { border-left: 0; }
+        #CommentTrackConfigPage .ct-seg button.active { background: #00a4dc; color: #fff; }
+        #CommentTrackConfigPage .ct-seg button:disabled { opacity: .4; cursor: default; }
+        #CommentTrackConfigPage .ct-block { display: inline-flex; align-items: center; gap: .35em; margin: 0; white-space: nowrap; }
+        #CommentTrackConfigPage .ct-user-note { padding: .75em; opacity: .6; }
+    </style>
 </head>
 <body>
 <div id="CommentTrackConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
@@ -117,6 +131,19 @@
             <button is="emby-button" type="button" id="ApplyToAll" class="raised block emby-button" style="margin-top:.6em">
                 <span>Apply default settings to all users now</span>
             </button>
+
+            <h3>Per-user access</h3>
+            <div class="fieldDescription">
+                Turn the comment overlay on or off for one person (they can still change
+                it back themselves in the player), or block the plugin for them entirely.
+                Blocking hides the overlay, the compose button and the library badges for
+                that user and stops the server accepting comments from them; comments they
+                have already posted stay visible. Changes take effect on that user's next
+                page load.
+            </div>
+            <input is="emby-input" type="text" id="CtUserSearch" placeholder="Search users by name"
+                   style="margin:.4em 0" />
+            <div id="CtUserList" class="ct-user-list"></div>
         </div>
     </div>
 
@@ -144,7 +171,107 @@
                     page.querySelector('#DefaultComposeShortcutKey').value = config.DefaultComposeShortcutKey;
                     Dashboard.hideLoadingMsg();
                 });
+                loadUsers();
             });
+
+            // ----- Per-user access -----
+
+            var userSearch = page.querySelector('#CtUserSearch');
+            var userListEl = page.querySelector('#CtUserList');
+            var overlayChoices = [['on', 'On', true], ['off', 'Off', false], ['default', 'Default', null]];
+            var allUsers = [];
+
+            function loadUsers() {
+                userListEl.textContent = 'Loading…';
+                ApiClient.ajax({
+                    type: 'GET',
+                    url: ApiClient.getUrl('CommentTrack/admin/users'),
+                    dataType: 'json'
+                }).then(function (users) {
+                    allUsers = users || [];
+                    renderUsers();
+                }, function () {
+                    userListEl.innerHTML = '<div class="ct-user-note">Could not load the user list.</div>';
+                });
+            }
+
+            function renderUsers() {
+                var q = (userSearch.value || '').trim().toLowerCase();
+                var rows = allUsers.filter(function (u) {
+                    return !q || (u.name || '').toLowerCase().indexOf(q) !== -1;
+                });
+                userListEl.innerHTML = '';
+                if (!rows.length) {
+                    var note = document.createElement('div');
+                    note.className = 'ct-user-note';
+                    note.textContent = allUsers.length ? 'No user matches that search.' : 'No users.';
+                    userListEl.appendChild(note);
+                    return;
+                }
+                rows.forEach(function (u) { userListEl.appendChild(userRow(u)); });
+            }
+
+            function userRow(u) {
+                var row = document.createElement('div');
+                row.className = 'ct-user-row' + (u.blocked ? ' ct-blocked' : '');
+
+                var name = document.createElement('span');
+                name.className = 'ct-user-name';
+                name.textContent = u.name;
+                row.appendChild(name);
+
+                var seg = document.createElement('span');
+                seg.className = 'ct-seg';
+                overlayChoices.forEach(function (choice) {
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.textContent = choice[1];
+                    btn.disabled = !!u.blocked;
+                    if (u.overlayEnabled === choice[2]) { btn.classList.add('active'); }
+                    btn.addEventListener('click', function () {
+                        if (u.overlayEnabled === choice[2]) { return; }
+                        saveUser(u, { overlayEnabled: choice[2] }, function () {
+                            u.overlayEnabled = choice[2];
+                            seg.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+                            btn.classList.add('active');
+                        });
+                    });
+                    seg.appendChild(btn);
+                });
+                row.appendChild(seg);
+
+                var blockLabel = document.createElement('label');
+                blockLabel.className = 'ct-block';
+                var cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = !!u.blocked;
+                cb.addEventListener('change', function () {
+                    var wanted = cb.checked;
+                    saveUser(u, { blocked: wanted }, function () {
+                        u.blocked = wanted;
+                        renderUsers();
+                    }, function () { cb.checked = !wanted; });
+                });
+                blockLabel.appendChild(cb);
+                blockLabel.appendChild(document.createTextNode('Block plugin'));
+                row.appendChild(blockLabel);
+
+                return row;
+            }
+
+            function saveUser(u, patch, onOk, onErr) {
+                ApiClient.ajax({
+                    type: 'PUT',
+                    url: ApiClient.getUrl('CommentTrack/admin/users/' + u.id),
+                    contentType: 'application/json',
+                    data: JSON.stringify(patch)
+                }).then(function () { if (onOk) { onOk(); } }, function () {
+                    Dashboard.alert('Could not update ' + u.name + '.');
+                    if (onErr) { onErr(); }
+                });
+            }
+
+            userSearch.addEventListener('input', renderUsers);
 
             page.querySelector('#CommentTrackConfigForm').addEventListener('submit', function (e) {
                 e.preventDefault();

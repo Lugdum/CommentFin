@@ -287,6 +287,61 @@ public sealed class SqliteCommentStore : ICommentStore, IDisposable
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<bool> IsUserBlockedAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        await EnsureInitialisedAsync(cancellationToken).ConfigureAwait(false);
+        await using var conn = await OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT blocked FROM user_policy WHERE user_id = $user";
+        cmd.Parameters.AddWithValue("$user", Key(userId));
+        var scalar = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return scalar is not null && Convert.ToInt64(scalar, CultureInfo.InvariantCulture) != 0;
+    }
+
+    public async Task SetUserBlockedAsync(Guid userId, bool blocked, CancellationToken cancellationToken)
+    {
+        await EnsureInitialisedAsync(cancellationToken).ConfigureAwait(false);
+        await using var conn = await OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        var cmd = conn.CreateCommand();
+        if (blocked)
+        {
+            cmd.CommandText =
+                "INSERT INTO user_policy (user_id, blocked, updated_at) VALUES ($user, 1, $now) "
+                + "ON CONFLICT (user_id) DO UPDATE SET blocked = 1, updated_at = excluded.updated_at";
+            cmd.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString(IsoFormat, CultureInfo.InvariantCulture));
+        }
+        else
+        {
+            cmd.CommandText = "DELETE FROM user_policy WHERE user_id = $user";
+        }
+
+        cmd.Parameters.AddWithValue("$user", Key(userId));
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyCollection<Guid>> GetBlockedUserIdsAsync(CancellationToken cancellationToken)
+    {
+        await EnsureInitialisedAsync(cancellationToken).ConfigureAwait(false);
+        await using var conn = await OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT user_id FROM user_policy WHERE blocked = 1";
+
+        var ids = new List<Guid>();
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            if (Guid.TryParse(reader.GetString(0), out var id))
+            {
+                ids.Add(id);
+            }
+        }
+
+        return ids;
+    }
+
     public void Dispose() => _initLock.Dispose();
 
     private static string Key(Guid value) => value.ToString("D", CultureInfo.InvariantCulture);

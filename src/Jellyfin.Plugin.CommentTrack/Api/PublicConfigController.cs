@@ -1,5 +1,9 @@
+using System;
 using System.Net.Mime;
 using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
+using Jellyfin.Plugin.CommentTrack.Storage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -13,14 +17,26 @@ namespace Jellyfin.Plugin.CommentTrack.Api;
 [Produces(MediaTypeNames.Application.Json)]
 public class PublicConfigController : ControllerBase
 {
-    /// <summary>Gets the client-facing configuration.</summary>
+    private readonly ICommentStore _store;
+
+    public PublicConfigController(ICommentStore store)
+    {
+        _store = store;
+    }
+
+    /// <summary>Gets the client-facing configuration for the calling user.</summary>
     [HttpGet("config")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public ActionResult<PublicConfig> GetConfig()
+    public async Task<ActionResult<PublicConfig>> GetConfig(CancellationToken cancellationToken)
     {
         var c = Plugin.Instance!.Configuration;
+        var userId = User.GetUserId();
+        var blocked = !userId.Equals(Guid.Empty)
+            && await _store.IsUserBlockedAsync(userId, cancellationToken).ConfigureAwait(false);
+
         return Ok(new PublicConfig
         {
+            Blocked = blocked,
             MaxCommentLength = c.MaxCommentLength,
             AllowAllUsersToPost = c.AllowAllUsersToPost,
             Defaults = new ClientDefaults
@@ -42,6 +58,11 @@ public class PublicConfigController : ControllerBase
     /// <summary>Client-facing config shape.</summary>
     public sealed class PublicConfig
     {
+        /// <summary>True when an admin has blocked this user from the plugin; the
+        /// client then does nothing at all for them.</summary>
+        [JsonPropertyName("blocked")]
+        public bool Blocked { get; set; }
+
         [JsonPropertyName("maxCommentLength")]
         public int MaxCommentLength { get; set; }
 

@@ -42,6 +42,13 @@ async function main() {
     cfg = { maxCommentLength: 200, allowAllUsersToPost: true, defaults: {} };
   }
   log('booted; config =', cfg);
+
+  if (cfg.blocked) {
+    // An admin has blocked this account from the plugin: mount nothing at all.
+    log('disabled for this account by the server admin');
+    return;
+  }
+
   await initSettings(cfg); // resolves defaults < account-synced prefs once, up front
 
   const isAdmin = await isCurrentUserAdmin();

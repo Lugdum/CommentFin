@@ -60,4 +60,13 @@ public interface ICommentStore
 
     /// <summary>Deletes every viewer's saved settings so they all fall back to the admin defaults again. Returns the number cleared.</summary>
     Task<int> ClearAllUserPrefsAsync(CancellationToken cancellationToken);
+
+    /// <summary>Whether an admin has blocked this user from the plugin entirely.</summary>
+    Task<bool> IsUserBlockedAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>Sets or clears the admin block on a user.</summary>
+    Task SetUserBlockedAsync(Guid userId, bool blocked, CancellationToken cancellationToken);
+
+    /// <summary>The user ids an admin has currently blocked from the plugin.</summary>
+    Task<IReadOnlyCollection<Guid>> GetBlockedUserIdsAsync(CancellationToken cancellationToken);
 }

@@ -147,11 +147,12 @@ export async function getCommentCounts(itemIds) {
 }
 
 /** Server + default-settings config. Falls back to sane values if unreachable
- * (settings.js's own DEFAULTS then take over for the per-viewer defaults). */
+ * (settings.js's own DEFAULTS then take over for the per-viewer defaults).
+ * `blocked` defaults to false so a failed fetch never locks a user out. */
 export async function getPublicConfig() {
   try {
     const res = await fetch(`${BASE}/config`, { headers: authHeaders(), credentials: 'same-origin' });
     if (res.ok) return res.json();
   } catch { /* ignore */ }
-  return { maxCommentLength: 200, allowAllUsersToPost: true, defaults: {} };
+  return { blocked: false, maxCommentLength: 200, allowAllUsersToPost: true, defaults: {} };
 }
