@@ -1,0 +1,18 @@
+{
+  "name": "comment-track-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Danmaku overlay for Jellyfin Comment Track (bundled into the plugin)",
+  "type": "module",
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  },
+  "dependencies": {
+    "danmaku": "^2.0.6"
+  }
+}

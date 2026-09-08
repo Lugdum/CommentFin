@@ -1,0 +1,12 @@
+[
+  {
+    "guid": "fa318865-64a9-4fcf-93b4-8462cf4d25d5",
+    "name": "CommentFin",
+    "description": "Timestamped, collaborative comments for Jellyfin, shown as a danmaku-style overlay on the video. People do not have to watch at the same time, and each viewer turns the overlay on for themselves. It runs in the web client only.",
+    "overview": "Collaborative timestamped comments overlaid on the video.",
+    "owner": "Lugdum",
+    "category": "General",
+    "imageUrl": "",
+    "versions": []
+  }
+]

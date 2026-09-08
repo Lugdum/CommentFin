@@ -1,0 +1,18 @@
+# .NET
+bin/
+obj/
+*.user
+
+# Node
+node_modules/
+
+# Build output
+dist/
+src/Jellyfin.Plugin.CommentTrack/Resources/comment-track.bundle.js
+*.zip
+
+# Local
+.env
+
+# Local development notes, not part of the published plugin
+PLAN.md

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>CommentFin</title>
+</head>
+<body>
+<div id="CommentTrackConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
+     data-require="emby-input,emby-button,emby-checkbox,emby-select">
+    <div data-role="content">
+        <div class="content-primary">
+            <form id="CommentTrackConfigForm">
+                <h2>CommentFin</h2>
+
+                <h3>Posting</h3>
+
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label>
+                        <input is="emby-checkbox" type="checkbox" id="AllowAllUsersToPost" />
+                        <span>Allow all users to post comments</span>
+                    </label>
+                    <div class="fieldDescription">If unchecked, only administrators may post.</div>
+                </div>
+
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="MaxCommentLength">Max comment length</label>
+                    <input is="emby-input" type="number" id="MaxCommentLength" min="1" max="1000" step="1" />
+                </div>
+
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="RateLimitPerHour">Max comments per user per hour (0 = no limit)</label>
+                    <input is="emby-input" type="number" id="RateLimitPerHour" min="0" max="100000" step="1" />
+                </div>
+
+                <h3>Default viewer settings</h3>
+                <div class="fieldDescription">
+                    The starting point for every viewer's own overlay settings. Anyone who
+                    changes a setting in the in-player panel keeps their own choice from
+                    then on, regardless of what's set here.
+                </div>
+
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label>
+                        <input is="emby-checkbox" type="checkbox" id="DefaultEnabled" />
+                        <span>Overlay on by default</span>
+                    </label>
+                </div>
+
+                <div class="selectContainer">
+                    <label class="selectLabel" for="DefaultDisplayMode">Display mode</label>
+                    <select is="emby-select" id="DefaultDisplayMode" class="emby-select-withcolor">
+                        <option value="scroll">Scroll</option>
+                        <option value="fixed-top">Fixed at top</option>
+                        <option value="fixed-bottom">Fixed at bottom</option>
+                    </select>
+                </div>
+
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="DefaultDurationSec">On-screen duration for fixed modes (seconds)</label>
+                    <input is="emby-input" type="number" id="DefaultDurationSec" min="1.5" max="30" step="0.5" />
+                </div>
+
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="DefaultSpeed">Scroll speed multiplier</label>
+                    <input is="emby-input" type="number" id="DefaultSpeed" min="0.2" max="5" step="0.1" />
+                </div>
+
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="DefaultFontSize">Text size (pixels)</label>
+                    <input is="emby-input" type="number" id="DefaultFontSize" min="10" max="72" step="1" />
+                </div>
+
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="DefaultOpacity">Opacity (0–1)</label>
+                    <input is="emby-input" type="number" id="DefaultOpacity" min="0.1" max="1" step="0.05" />
+                </div>
+
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label>
+                        <input is="emby-checkbox" type="checkbox" id="DefaultShowAuthor" />
+                        <span>Show the author's name</span>
+                    </label>
+                </div>
+
+                <div class="selectContainer">
+                    <label class="selectLabel" for="DefaultCardTheme">Comment bubble style</label>
+                    <select is="emby-select" id="DefaultCardTheme" class="emby-select-withcolor">
+                        <option value="dark">Dark (gray bubble)</option>
+                        <option value="light">Light (white bubble)</option>
+                    </select>
+                </div>
+
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="DefaultComposeOffsetSec">Compose offset (seconds)</label>
+                    <input is="emby-input" type="number" id="DefaultComposeOffsetSec" min="0" max="15" step="0.5" />
+                    <div class="fieldDescription">Backdates a new comment's timecode, to compensate for reaction + click time.</div>
+                </div>
+
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="DefaultComposeShortcutKey">Compose keyboard shortcut</label>
+                    <input is="emby-input" type="text" id="DefaultComposeShortcutKey" maxlength="1" style="max-width: 4em" />
+                    <div class="fieldDescription">A single character. Opens the compose box, same as clicking its button.</div>
+                </div>
+
+                <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                    <span>Save</span>
+                </button>
+            </form>
+
+            <h3>Apply to existing users</h3>
+            <div class="fieldDescription">
+                Saving above only changes the defaults for <em>new</em> users and for
+                anyone who has never touched a given setting. This button resets
+                <strong>every</strong> user's overlay settings, including people who
+                already customised their own, so that they all follow the defaults
+                above again. It takes effect for each user on their next page load.
+            </div>
+            <button is="emby-button" type="button" id="ApplyToAll" class="raised block emby-button" style="margin-top:.6em">
+                <span>Apply default settings to all users now</span>
+            </button>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        (function () {
+            var pluginId = 'fa318865-64a9-4fcf-93b4-8462cf4d25d5';
+            var page = document.querySelector('#CommentTrackConfigPage');
+
+            page.addEventListener('pageshow', function () {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                    page.querySelector('#AllowAllUsersToPost').checked = config.AllowAllUsersToPost;
+                    page.querySelector('#MaxCommentLength').value = config.MaxCommentLength;
+                    page.querySelector('#RateLimitPerHour').value = config.RateLimitPerHour;
+
+                    page.querySelector('#DefaultEnabled').checked = config.DefaultEnabled;
+                    page.querySelector('#DefaultDisplayMode').value = config.DefaultDisplayMode;
+                    page.querySelector('#DefaultDurationSec').value = config.DefaultDurationSec;
+                    page.querySelector('#DefaultSpeed').value = config.DefaultSpeed;
+                    page.querySelector('#DefaultFontSize').value = config.DefaultFontSize;
+                    page.querySelector('#DefaultOpacity').value = config.DefaultOpacity;
+                    page.querySelector('#DefaultShowAuthor').checked = config.DefaultShowAuthor;
+                    page.querySelector('#DefaultCardTheme').value = config.DefaultCardTheme;
+                    page.querySelector('#DefaultComposeOffsetSec').value = config.DefaultComposeOffsetSec;
+                    page.querySelector('#DefaultComposeShortcutKey').value = config.DefaultComposeShortcutKey;
+                    Dashboard.hideLoadingMsg();
+                });
+            });
+
+            page.querySelector('#CommentTrackConfigForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                    config.AllowAllUsersToPost = page.querySelector('#AllowAllUsersToPost').checked;
+                    config.MaxCommentLength = parseInt(page.querySelector('#MaxCommentLength').value, 10);
+                    config.RateLimitPerHour = parseInt(page.querySelector('#RateLimitPerHour').value, 10);
+
+                    config.DefaultEnabled = page.querySelector('#DefaultEnabled').checked;
+                    config.DefaultDisplayMode = page.querySelector('#DefaultDisplayMode').value;
+                    config.DefaultDurationSec = parseFloat(page.querySelector('#DefaultDurationSec').value);
+                    config.DefaultSpeed = parseFloat(page.querySelector('#DefaultSpeed').value);
+                    config.DefaultFontSize = parseInt(page.querySelector('#DefaultFontSize').value, 10);
+                    config.DefaultOpacity = parseFloat(page.querySelector('#DefaultOpacity').value);
+                    config.DefaultShowAuthor = page.querySelector('#DefaultShowAuthor').checked;
+                    config.DefaultCardTheme = page.querySelector('#DefaultCardTheme').value;
+                    config.DefaultComposeOffsetSec = parseFloat(page.querySelector('#DefaultComposeOffsetSec').value);
+                    config.DefaultComposeShortcutKey = (page.querySelector('#DefaultComposeShortcutKey').value || 'c').charAt(0).toLowerCase();
+
+                    ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
+                        Dashboard.processPluginConfigurationUpdateResult(result);
+                    });
+                });
+                return false;
+            });
+
+            page.querySelector('#ApplyToAll').addEventListener('click', function () {
+                var msg = 'Reset every user\'s comment-overlay settings to the defaults above? '
+                    + 'Anyone who customised their own settings will lose those changes.';
+                Dashboard.confirm(msg, 'Apply to all users', function (ok) {
+                    if (!ok) return;
+                    Dashboard.showLoadingMsg();
+                    ApiClient.ajax({
+                        type: 'POST',
+                        url: ApiClient.getUrl('CommentTrack/prefs/reset-all'),
+                        dataType: 'json'
+                    }).then(function (res) {
+                        Dashboard.hideLoadingMsg();
+                        Dashboard.alert('Done. Reset ' + (res && res.cleared != null ? res.cleared : 0)
+                            + ' user(s). It applies on each user\'s next page load.');
+                    }, function () {
+                        Dashboard.hideLoadingMsg();
+                        Dashboard.alert('Failed to apply settings to all users.');
+                    });
+                });
+            });
+        })();
+    </script>
+</div>
+</body>
+</html>

@@ -1,0 +1,98 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Bundle overlay
+        working-directory: client
+        run: |
+          npm ci --no-audit --no-fund
+          node esbuild.mjs
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Build & package
+        id: pkg
+        run: |
+          VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/Jellyfin.Plugin.CommentTrack/Jellyfin.Plugin.CommentTrack.csproj | head -1)
+          TAG="${GITHUB_REF_NAME}"
+          if [ "$TAG" != "v${VERSION}" ]; then
+            echo "::error::Tag $TAG does not match csproj <Version> $VERSION (expected v${VERSION})"
+            exit 1
+          fi
+          dotnet publish src/Jellyfin.Plugin.CommentTrack/Jellyfin.Plugin.CommentTrack.csproj \
+            -c Release -o dist/publish -p:DebugType=none -p:DebugSymbols=false
+          ZIP="commentfin_${VERSION}.zip"
+          ( cd dist/publish && zip -qr "../$ZIP" Jellyfin.Plugin.CommentTrack.dll )
+          echo "version=$VERSION"                       >> "$GITHUB_OUTPUT"
+          echo "zip=dist/$ZIP"                          >> "$GITHUB_OUTPUT"
+          echo "md5=$(md5sum "dist/$ZIP" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Add this version to manifest.json
+        env:
+          V:   ${{ steps.pkg.outputs.version }}
+          MD5: ${{ steps.pkg.outputs.md5 }}
+        run: |
+          python3 - <<'PY'
+          import json, os, datetime, pathlib
+          v, md5 = os.environ["V"], os.environ["MD5"]
+          repo = os.environ["GITHUB_REPOSITORY"]
+          p = pathlib.Path("manifest.json")
+          data = json.loads(p.read_text())
+          plugin = data[0]
+          plugin["versions"] = [x for x in plugin.get("versions", []) if x["version"] != v]
+          plugin["versions"].insert(0, {
+              "version": v,
+              "changelog": f"See https://github.com/{repo}/releases/tag/v{v}",
+              "targetAbi": "10.11.0.0",
+              "sourceUrl": f"https://github.com/{repo}/releases/download/v{v}/commentfin_{v}.zip",
+              "checksum": md5,
+              "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+          })
+          p.write_text(json.dumps(data, indent=2) + "\n")
+          PY
+
+      # The release carries both the plugin zip and the updated manifest.json, so
+      # https://github.com/<owner>/CommentFin/releases/latest/download/manifest.json
+      # always resolves even if the commit back to main below is skipped.
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ steps.pkg.outputs.zip }}
+            manifest.json
+          generate_release_notes: true
+
+      # Keeps main's manifest.json current so the raw.githubusercontent.com URL
+      # also works. Needs "Read and write permissions" under
+      # Settings > Actions > General > Workflow permissions; if that is off this
+      # step is skipped rather than failing the release.
+      - name: Commit manifest.json to main
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git commit -m "manifest: ${{ steps.pkg.outputs.version }}" || { echo "manifest unchanged"; exit 0; }
+          git push origin HEAD:main || echo "manifest push skipped (grant Actions write permission to enable it)"
+

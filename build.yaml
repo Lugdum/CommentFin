@@ -1,0 +1,23 @@
+---
+name: "CommentFin"
+guid: "fa318865-64a9-4fcf-93b4-8462cf4d25d5"
+version: "0.1.0.0"
+targetAbi: "10.11.0.0"
+framework: "net9.0"
+overview: "Timestamped collaborative comments shown as a danmaku overlay on the video."
+description: >
+  Viewers leave remarks attached to a media timecode, and other people see them
+  scroll as a danmaku-style overlay when they watch later. It runs in the web
+  client only and stays off until each viewer turns it on. The backend lives in
+  the plugin itself (REST plus SQLite), and the browser script is injected
+  through the File Transformation plugin.
+category: "General"
+owner: "Lugdum"
+artifacts:
+  - "Jellyfin.Plugin.CommentTrack.dll"
+changelog: >
+  ### 0.1.0.0
+  - First release. Comment overlay (scroll / fixed-top / fixed-bottom), in-player
+    compose button + keyboard shortcut, progress-bar markers, library-card badges,
+    per-account synced settings, admin defaults + "apply to all users", per-viewer
+    manage view and an admin server-wide moderation view. English + French.

@@ -1,0 +1,48 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Bundle overlay
+        working-directory: client
+        run: |
+          npm ci --no-audit --no-fund
+          node esbuild.mjs
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Publish plugin
+        run: |
+          dotnet publish src/Jellyfin.Plugin.CommentTrack/Jellyfin.Plugin.CommentTrack.csproj \
+            -c Release -o dist/publish -p:DebugType=none -p:DebugSymbols=false
+
+      - name: Package
+        run: |
+          VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/Jellyfin.Plugin.CommentTrack/Jellyfin.Plugin.CommentTrack.csproj | head -1)
+          cd dist/publish
+          zip -qr "../commentfin_${VERSION}.zip" Jellyfin.Plugin.CommentTrack.dll
+          cd ..
+          sha256sum "commentfin_${VERSION}.zip"
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: commentfin-plugin
+          path: dist/commentfin_*.zip
+          if-no-files-found: error

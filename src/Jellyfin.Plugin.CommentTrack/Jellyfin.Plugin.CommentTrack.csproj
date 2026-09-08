@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <RootNamespace>Jellyfin.Plugin.CommentTrack</RootNamespace>
+    <AssemblyName>Jellyfin.Plugin.CommentTrack</AssemblyName>
+    <Version>0.1.0.0</Version>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Compile against the exact server version. runtime assets come from the host. -->
+    <PackageReference Include="Jellyfin.Controller" Version="10.11.11">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="Jellyfin.Model" Version="10.11.11">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+
+    <!-- Host ships Microsoft.Data.Sqlite 9.0.11 and has already called
+         Batteries_V2.Init(); reference for API only, do not duplicate the native bundle. -->
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="9.0.11">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Configuration\configPage.html" />
+    <EmbeddedResource Include="Resources\comment-track.bundle.js" />
+    <EmbeddedResource Include="Storage\schema.sql" />
+  </ItemGroup>
+
+  <!-- The real bundle is produced by client/esbuild.mjs (see build/build.sh and CI).
+       Write a stub if it is missing so a bare `dotnet build` still succeeds. -->
+  <Target Name="EnsureClientBundleStub" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <_BundlePath>$(MSBuildProjectDirectory)/Resources/comment-track.bundle.js</_BundlePath>
+    </PropertyGroup>
+    <WriteLinesToFile
+      Condition="!Exists('$(_BundlePath)')"
+      File="$(_BundlePath)"
+      Lines="/* placeholder - run client/esbuild.mjs to produce the real overlay bundle */console.warn('[CommentTrack] overlay bundle not built');"
+      Overwrite="true" />
+  </Target>
+
+</Project>
