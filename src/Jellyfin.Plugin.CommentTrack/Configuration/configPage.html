@@ -2,24 +2,77 @@
 <html lang="en">
 <head>
     <title>CommentFin</title>
-    <style>
-        #CommentTrackConfigPage .ct-user-list { border: 1px solid rgba(127,127,127,.35); border-radius: 6px; max-height: 22em; overflow-y: auto; margin-bottom: 1em; }
-        #CommentTrackConfigPage .ct-user-row { display: flex; align-items: center; gap: .75em; padding: .5em .75em; border-bottom: 1px solid rgba(127,127,127,.2); flex-wrap: wrap; }
-        #CommentTrackConfigPage .ct-user-row:last-child { border-bottom: 0; }
-        #CommentTrackConfigPage .ct-user-name { flex: 1 1 9em; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        #CommentTrackConfigPage .ct-user-row.ct-blocked .ct-user-name { opacity: .5; text-decoration: line-through; }
-        #CommentTrackConfigPage .ct-seg { display: inline-flex; border: 1px solid rgba(127,127,127,.5); border-radius: 5px; overflow: hidden; }
-        #CommentTrackConfigPage .ct-seg button { background: transparent; border: 0; border-left: 1px solid rgba(127,127,127,.5); color: inherit; padding: .25em .7em; cursor: pointer; font: inherit; font-size: .9em; }
-        #CommentTrackConfigPage .ct-seg button:first-child { border-left: 0; }
-        #CommentTrackConfigPage .ct-seg button.active { background: #00a4dc; color: #fff; }
-        #CommentTrackConfigPage .ct-seg button:disabled { opacity: .4; cursor: default; }
-        #CommentTrackConfigPage .ct-block { display: inline-flex; align-items: center; gap: .35em; margin: 0; white-space: nowrap; }
-        #CommentTrackConfigPage .ct-user-note { padding: .75em; opacity: .6; }
-    </style>
 </head>
 <body>
 <div id="CommentTrackConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
      data-require="emby-input,emby-button,emby-checkbox,emby-select">
+    <!-- jellyfin-web injects only the body content of this page into the SPA DOM
+         and drops <head>, so this stylesheet has to live here to actually apply. -->
+    <style>
+        #CommentTrackConfigPage .ct-user-search { width: 100%; box-sizing: border-box; margin: .6em 0; }
+        #CommentTrackConfigPage .ct-user-list {
+            border: 1px solid rgba(127, 127, 127, .3);
+            border-radius: 10px;
+            background: rgba(127, 127, 127, .06);
+            /* roughly 6 rows tall, then it scrolls */
+            max-height: 17em;
+            overflow-y: auto;
+            margin-bottom: 1.4em;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+        }
+        #CommentTrackConfigPage .ct-user-row {
+            display: flex;
+            align-items: center;
+            gap: 1em;
+            padding: .55em .95em;
+            border-bottom: 1px solid rgba(127, 127, 127, .16);
+        }
+        #CommentTrackConfigPage .ct-user-row:last-child { border-bottom: 0; }
+        #CommentTrackConfigPage .ct-user-row:hover { background: rgba(127, 127, 127, .1); }
+        #CommentTrackConfigPage .ct-user-name {
+            flex: 0 0 auto;
+            width: 11em;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #CommentTrackConfigPage .ct-user-row.ct-blocked { opacity: .55; }
+        #CommentTrackConfigPage .ct-user-row.ct-blocked .ct-user-name { text-decoration: line-through; }
+        #CommentTrackConfigPage .ct-seg {
+            display: inline-flex;
+            flex: 0 0 auto;
+            border: 1px solid rgba(127, 127, 127, .45);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        #CommentTrackConfigPage .ct-seg button {
+            background: transparent;
+            border: 0;
+            color: inherit;
+            padding: .32em 1em;
+            cursor: pointer;
+            font: inherit;
+            font-size: .82em;
+            line-height: 1.5;
+            transition: background .12s ease, color .12s ease;
+        }
+        #CommentTrackConfigPage .ct-seg button + button { border-left: 1px solid rgba(127, 127, 127, .3); }
+        #CommentTrackConfigPage .ct-seg button:hover:not(:disabled):not(.active) { background: rgba(127, 127, 127, .2); }
+        #CommentTrackConfigPage .ct-seg button.active { background: #00a4dc; color: #fff; font-weight: 600; }
+        #CommentTrackConfigPage .ct-seg button:disabled { opacity: .4; cursor: default; }
+        #CommentTrackConfigPage .ct-block {
+            display: inline-flex;
+            align-items: center;
+            gap: .4em;
+            margin: 0;
+            white-space: nowrap;
+            font-size: .9em;
+            cursor: pointer;
+        }
+        #CommentTrackConfigPage .ct-block input { cursor: pointer; }
+        #CommentTrackConfigPage .ct-user-note { padding: 1em; opacity: .6; text-align: center; }
+    </style>
     <div data-role="content">
         <div class="content-primary">
             <form id="CommentTrackConfigForm">
@@ -141,8 +194,8 @@
                 have already posted stay visible. Changes take effect on that user's next
                 page load.
             </div>
-            <input is="emby-input" type="text" id="CtUserSearch" placeholder="Search users by name"
-                   style="margin:.4em 0" />
+            <input is="emby-input" type="text" id="CtUserSearch" class="ct-user-search"
+                   placeholder="Search users by name" />
             <div id="CtUserList" class="ct-user-list"></div>
         </div>
     </div>
@@ -220,6 +273,12 @@
                 name.textContent = u.name;
                 row.appendChild(name);
 
+                // Normalise to true / false / null: the server omits the field
+                // entirely when the user has no explicit choice.
+                var current = u.overlayEnabled === true ? true
+                    : u.overlayEnabled === false ? false
+                    : null;
+
                 var seg = document.createElement('span');
                 seg.className = 'ct-seg';
                 overlayChoices.forEach(function (choice) {
@@ -227,10 +286,11 @@
                     btn.type = 'button';
                     btn.textContent = choice[1];
                     btn.disabled = !!u.blocked;
-                    if (u.overlayEnabled === choice[2]) { btn.classList.add('active'); }
+                    if (current === choice[2]) { btn.classList.add('active'); }
                     btn.addEventListener('click', function () {
-                        if (u.overlayEnabled === choice[2]) { return; }
+                        if (current === choice[2]) { return; }
                         saveUser(u, { overlayEnabled: choice[2] }, function () {
+                            current = choice[2];
                             u.overlayEnabled = choice[2];
                             seg.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
                             btn.classList.add('active');

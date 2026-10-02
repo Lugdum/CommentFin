@@ -10,9 +10,14 @@
 
 const BASE = '/CommentTrack';
 
+/**
+ * The `Authorization: MediaBrowser` scheme, not the legacy `X-Emby-Token`
+ * header: Jellyfin 12 ships with legacy authorization disabled, so the old
+ * header (and the `api_key` query parameter) get a 401 on every route.
+ */
 function authHeaders() {
   const token = window.ApiClient?.accessToken?.();
-  return token ? { 'X-Emby-Token': token } : {};
+  return token ? { Authorization: `MediaBrowser Token="${token}"` } : {};
 }
 
 /** An HTTP failure from the API, with the numeric status attached. */
@@ -87,7 +92,7 @@ export async function deleteComment(id) {
 export function avatarUrl(userId, sizePx = 64) {
   const token = window.ApiClient?.accessToken?.();
   const q = new URLSearchParams({ quality: '90', height: String(Math.round(sizePx)) });
-  if (token) q.set('api_key', token);
+  if (token) q.set('ApiKey', token); // `api_key` is the legacy spelling, see authHeaders()
   return `/Users/${encodeURIComponent(userId)}/Images/Primary?${q.toString()}`;
 }
 

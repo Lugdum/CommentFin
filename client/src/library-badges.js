@@ -11,12 +11,16 @@ import { getCommentCounts } from './api.js';
 import { debounce } from './util.js';
 
 const BATCH_CAP = 200;
+const RETRY_MIN_MS = 5000;
+const RETRY_MAX_MS = 5 * 60 * 1000;
 const norm = (id) => String(id).replace(/-/g, '').toLowerCase();
 const countCache = new Map(); // norm(id) -> count (0 included), session-lived
 
 export function mountLibraryBadges() {
   ensureStyle();
   const pending = new Set();
+  let retryDelay = 0; // 0 while the last fetch succeeded
+  let retryAt = 0;
 
   const flush = debounce(async () => {
     const ids = [...pending].slice(0, BATCH_CAP);
@@ -26,9 +30,15 @@ export function mountLibraryBadges() {
     try {
       counts = await getCommentCounts(ids);
     } catch (e) {
-      console.warn('[CommentTrack] badges: count fetch failed', e);
+      // The ids stay uncached, so the next scan would re-send the same failing
+      // request - and the page mutates constantly during playback. Back off
+      // instead of hammering the server.
+      retryDelay = Math.min(retryDelay ? retryDelay * 2 : RETRY_MIN_MS, RETRY_MAX_MS);
+      retryAt = Date.now() + retryDelay;
+      console.warn(`[CommentTrack] badges: count fetch failed, next try in ${retryDelay / 1000}s`, e);
       return;
     }
+    retryDelay = 0;
     const byNorm = {};
     for (const [k, v] of Object.entries(counts)) byNorm[norm(k)] = v;
     for (const id of ids) {
@@ -40,13 +50,14 @@ export function mountLibraryBadges() {
 
   const scan = debounce(() => {
     const cards = document.querySelectorAll('.card[data-id]');
+    const canFetch = Date.now() >= retryAt;
     let unknown = 0;
     cards.forEach((card) => {
       const id = card.dataset.id;
       if (!id) return;
       if (countCache.has(norm(id))) {
         if (!card.querySelector('.ct-card-badge')) applyBadgeTo(card, countCache.get(norm(id)));
-      } else {
+      } else if (canFetch) {
         pending.add(id);
         unknown++;
       }
