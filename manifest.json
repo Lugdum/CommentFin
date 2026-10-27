@@ -9,6 +9,14 @@
     "imageUrl": "",
     "versions": [
       {
+        "version": "0.1.1.0",
+        "changelog": "See https://github.com/Lugdum/CommentFin/releases/tag/v0.1.1.0",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/Lugdum/CommentFin/releases/download/v0.1.1.0/commentfin_0.1.1.0.zip",
+        "checksum": "6ffecc9c9e4495aaa04f1bb7fd462de1",
+        "timestamp": "2026-10-27T10:44:11Z"
+      },
+      {
         "version": "0.1.0.0",
         "changelog": "See https://github.com/Lugdum/CommentFin/releases/tag/v0.1.0.0",
         "targetAbi": "10.11.0.0",
